@@ -37,7 +37,7 @@ _getUidGidLxd() {
         elif [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/ubuntu" ]; then
             DEFAULT_USER=ubuntu
         fi
-
+        echo "Available users:" $(lxc exec $1 -- awk -F':' '$2 ~ "\\$" {print $1}' /etc/shadow)
         echo -n "User in container to make uig/gid mapping [${DEFAULT_USER}]: "
         read INPUT_USER
         if [ "$INPUT_USER" = "" ]; then
