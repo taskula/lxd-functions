@@ -12,6 +12,12 @@ PATH_SCRIPT=$(cd $PATH_SCRIPT && pwd)
 
 . ${PATH_SCRIPT}/config.sh
 
+if command -v snap > /dev/null 2>&1; then
+    if [ -d "/var/snap/lxd" ]; then
+       LXD_SOURCE_DIR=$LXD_SOURCE_DIR_SNAP
+    fi
+fi
+
 # POSIX confirm
 _confirm() {
     echo -n $1 " ? [y/n]"
@@ -28,13 +34,13 @@ _confirm() {
 
 # Get the UID and the GID of the current user in the container (or root by default)
 _getUidGidLxd() {
-    if [ -d "${LXD_SOURCE_DIR}/$1/rootfs" ] && [ -x "${LXD_SOURCE_DIR}/$1/rootfs" ]; then
+    if sudo [ -d "${LXD_SOURCE_DIR}/$1/rootfs" ] && sudo [ -x "${LXD_SOURCE_DIR}/$1/rootfs" ]; then
         DEFAULT_USER=root
-        if [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/$USER" ]; then
+        if sudo [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/$USER" ]; then
             DEFAULT_USER=$USER
-        elif [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/$1" ]; then
+        elif sudo [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/$1" ]; then
             DEFAULT_USER=$1
-        elif [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/ubuntu" ]; then
+        elif sudo [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/ubuntu" ]; then
             DEFAULT_USER=ubuntu
         fi
         echo "Available users:" $(lxc exec $1 -- awk -F':' '$2 ~ "\\$" {print $1}' /etc/shadow)
@@ -44,23 +50,23 @@ _getUidGidLxd() {
             INPUT_USER=$DEFAULT_USER
         fi
 
-        if [ "$INPUT_USER" != 'root' ] && [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/$INPUT_USER" ]; then
+        if [ "$INPUT_USER" != 'root' ] && sudo [ -d "${LXD_SOURCE_DIR}/$1/rootfs/home/$INPUT_USER" ]; then
             echo "The user $INPUT_USER was found and will be used to make the uig/gid mapping."
-            UID_GUEST_MOUNT=`ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/home/$INPUT_USER | awk '{print $3}'`
-            GID_GUEST_MOUNT=`ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/home/$INPUT_USER | awk '{print $4}'`
+            UID_GUEST_MOUNT=`sudo ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/home/$INPUT_USER | awk '{print $3}'`
+            GID_GUEST_MOUNT=`sudo ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/home/$INPUT_USER | awk '{print $4}'`
         else
             if [ "$INPUT_USER" != 'root' ]; then
                 echo "The user $INPUT_USER was not found."
             fi
 
-            if [ -d "$LXD_SOURCE_DIR/$1/rootfs/root" ]; then
+            if sudo [ -d "$LXD_SOURCE_DIR/$1/rootfs/root" ]; then
                 echo "The mapping will use the root user."
-                UID_GUEST_MOUNT=`ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/root | awk '{print $3}'`
-                GID_GUEST_MOUNT=`ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/root | awk '{print $4}'`
+                UID_GUEST_MOUNT=`sudo ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/root | awk '{print $3}'`
+                GID_GUEST_MOUNT=`sudo ls -ldn ${LXD_SOURCE_DIR}/$1/rootfs/root | awk '{print $4}'`
             fi
         fi
 
-        if [ -z "${UID_GUEST_MOUNT+x}" ]; then
+        if sudo [ -z "${UID_GUEST_MOUNT+x}" ]; then
             echo "Unable to find a user $INPUT_USER in the container"
             return 1
         fi
@@ -160,13 +166,13 @@ lxd-create() {
 
 _lxdListComplete()
 {
-    if [ -d "${LXD_SOURCE_DIR}" ] && [ -x "${LXD_SOURCE_DIR}" ]; then
+    if sudo [ -d "${LXD_SOURCE_DIR}" ] && sudo [ -x "${LXD_SOURCE_DIR}" ]; then
         local cur opts prev
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
-        opts="$(find ${LXD_SOURCE_DIR} -mindepth 1 -maxdepth 1 -print0 | xargs -r -0 -n 1 basename)"
+        opts="$(sudo find ${LXD_SOURCE_DIR} -mindepth 1 -maxdepth 1 -print0 | xargs -r -0 -n 1 basename)"
         if [ "${prev}" == "lxd-start" ] || [ "${prev}" == "lxd-bindfs-mount" ]; then
-            COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+            COMPREPLY=( sudo $(compgen -W "${opts}" -- ${cur}) )
         fi
     fi
 }
